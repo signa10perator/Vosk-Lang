@@ -2,7 +2,17 @@ mod lexer;
 mod parser;
 mod ast;
 
+use lexer::{Lexer, Token};
+
 fn main() {
-	println!("VØSK v0.1.0");
-	println!("vosk run <file.vsk>");
+    let source = "~ anomaly { src :: ? freq :: % }";
+    let mut lex = Lexer::new(source);
+
+    loop {
+        let tok = lex.next_token();
+        println!("{:?}", tok);
+        if tok == Token::EOF {
+            break;
+        }
+    }
 }
