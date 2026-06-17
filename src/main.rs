@@ -2,17 +2,30 @@ mod lexer;
 mod parser;
 mod ast;
 
-use lexer::{Lexer, Token};
+use lexer::Lexer;
+use parser::Parser;
 
 fn main() {
-    let source = "~ anomaly { src :: ? freq :: % }";
-    let mut lex = Lexer::new(source);
+    let source = "
+~ anomaly {
+    src :: ?
+    freq :: % 
+    signal :: +
+    ! signal :: +
+    @ freq :: x
+}
+";
 
-    loop {
-        let tok = lex.next_token();
-        println!("{:?}", tok);
-        if tok == Token::EOF {
-            break;
+    let lexer = Lexer::new(source);
+    let mut parser = Parser::new(lexer);
+
+    match parser.parse_program() {
+        Ok(program) => {
+            println!("parsed successfully.");
+            println!("{:#?}", program);
+        }
+        Err(e) => {
+            println!("parse error: {}", e);
         }
     }
 }
