@@ -11,6 +11,22 @@ pub enum RuntimeState {
     Str(String),
 }
 
+impl RuntimeState {
+    pub fn tick(&self) -> RuntimeState {
+        match self {
+            RuntimeState::Decaying(n) => {
+                let next = n - 0.25;
+                if next <= 0.0 {
+                    RuntimeState::Corrupted
+                } else {
+                    RuntimeState::Decaying(next)
+                }
+            }
+            other => other.clone(),
+        }
+    }
+}
+
 pub struct Interpreter {
     pub bindings: HashMap<String, RuntimeState>,
     pub corrupted: bool,
@@ -36,11 +52,53 @@ impl Interpreter {
         }
     }
 
-    fn run_context(&mut self, context: &Context) {
-        for stmt in &context.body {
-            self.run_stmt(stmt);
+   fn run_context(&mut self, context: &Context) {
+           for stmt in &context.body {
+               self.run_stmt(stmt);
+           }
+   
+           println!("  -- decay tick --");
+           self.tick_decay();
+   
+           for stmt in &context.body {
+               if let Stmt::Observe { target, condition, transmit } = stmt {
+                   let watch = self.state_to_runtime(condition);
+                   let actual = self.bindings.get(target).cloned();
+   
+                   let triggered = match (&actual, &watch) {
+                       (Some(RuntimeState::Corrupted), RuntimeState::Corrupted) => true,
+                       _ => false,
+                   };
+   
+                   if triggered {
+                       println!("  @ {} :: condition met after decay", target);
+                       if let Some(tx) = transmit {
+                           match tx.scope {
+                               TransmitScope::Emit => println!("  ~> emit \"{}\"", tx.message),
+                               TransmitScope::Propagate => println!("  ~> * \"{}\"", tx.message),
+                               TransmitScope::Escalate => println!("  ~> ^ \"{}\"", tx.message),
+                               TransmitScope::Local => println!("  ~> \"{}\"", tx.message),
+                           }
+                       }
+                   }
+               }
+           }
+       }
+
+    pub fn tick_decay(&mut self) {
+            let mut corrupted = vec![];
+    
+            for (name, state) in self.bindings.iter_mut() {
+                *state = state.tick();
+                if let RuntimeState::Corrupted = state {
+                    corrupted.push(name.clone());
+                }
+            }
+    
+            for name in corrupted {
+                println!("  % {} :: decayed -> Corrupted", name);
+            }
         }
-    }
 
     fn run_stmt(&mut self, stmt: &Stmt) {
         match stmt {
@@ -109,7 +167,7 @@ Stmt::Observe { target, condition, transmit } => {
         match state {
             State::Unknown => RuntimeState::Unknown,
             State::Resolved => RuntimeState::Resolved,
-            State::Decaying => RuntimeState::Decaying(1.0),
+            State::Decaying => RuntimeState::Decaying(0.25),
             State::Corrupted => RuntimeState::Corrupted,
             State::Value(n) => RuntimeState::Value(*n),
             State::Str(s) => RuntimeState::Str(s.clone()),

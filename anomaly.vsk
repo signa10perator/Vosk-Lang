@@ -1,6 +1,6 @@
 ~ anomaly {
     src :: ?
-    freq :: x
+    freq :: %
     signal :: +
     ! signal :: +
     @ freq :: x ~> "SIGNAL_LOST"
