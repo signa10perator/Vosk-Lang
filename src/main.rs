@@ -1,15 +1,17 @@
 mod lexer;
 mod parser;
 mod ast;
+mod interpreter;
 
 use lexer::Lexer;
 use parser::Parser;
+use interpreter::Interpreter;
 
 fn main() {
     let source = "
 ~ anomaly {
     src :: ?
-    freq :: % 
+    freq :: %
     signal :: +
     ! signal :: +
     @ freq :: x
@@ -21,8 +23,8 @@ fn main() {
 
     match parser.parse_program() {
         Ok(program) => {
-            println!("parsed successfully.");
-            println!("{:#?}", program);
+            let mut interpreter = Interpreter::new();
+            interpreter.run_program(&program);
         }
         Err(e) => {
             println!("parse error: {}", e);
