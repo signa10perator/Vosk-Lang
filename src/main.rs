@@ -14,10 +14,18 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("VØSK v0.1.0");
-        println!("usage: vosk run <file.vsk>");
-        return;
-    }
+            println!();
+            println!("  VØSK v0.1.0");
+            println!("  a language where values decay and constraints must hold");
+            println!();
+            println!("  usage:");
+            println!("    vosk run <file.vsk>     execute a VØSK program");
+            println!("    vosk check <file.vsk>   parse without executing");
+            println!();
+            println!("  states:  ? unknown  + resolved  % decaying  x corrupted");
+            println!();
+            return;
+        }
 
     let command = &args[1];
     let filepath = &args[2];
