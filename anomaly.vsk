@@ -1,0 +1,7 @@
+~ anomaly {
+    src :: ?
+    freq :: %
+    signal :: +
+    ! signal :: +
+    @ freq :: x
+}
