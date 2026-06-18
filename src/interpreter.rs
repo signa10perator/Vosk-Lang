@@ -69,7 +69,7 @@ impl Interpreter {
                 }
             }
 
-            Stmt::Observe { target, condition, .. } => {
+Stmt::Observe { target, condition, transmit } => {
                 let watch = self.state_to_runtime(condition);
                 let actual = self.bindings.get(target).cloned();
 
@@ -81,7 +81,23 @@ impl Interpreter {
                 };
 
                 if triggered {
-                    println!("  @ {} :: condition met — transmission fired", target);
+                    println!("  @ {} :: condition met", target);
+                    if let Some(tx) = transmit {
+                        match tx.scope {
+                            TransmitScope::Emit => {
+                                println!("  ~> emit \"{}\"", tx.message);
+                            }
+                            TransmitScope::Propagate => {
+                                println!("  ~> * \"{}\"", tx.message);
+                            }
+                            TransmitScope::Escalate => {
+                                println!("  ~> ^ \"{}\"", tx.message);
+                            }
+                            TransmitScope::Local => {
+                                println!("  ~> \"{}\"", tx.message);
+                            }
+                        }
+                    }
                 } else {
                     println!("  @ {} :: watching", target);
                 }

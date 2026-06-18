@@ -99,7 +99,7 @@ impl Parser {
         Ok(Stmt::Constraint { target, condition })
     }
 
-    fn parse_observe(&mut self) -> Result<Stmt, String> {
+fn parse_observe(&mut self) -> Result<Stmt, String> {
         self.expect(Token::Observe)?;
 
         let target = match self.advance() {
@@ -111,10 +111,32 @@ impl Parser {
 
         let condition = self.parse_state()?;
 
+        let transmit = if self.current == Token::Transmit {
+            self.advance();
+            let scope = match self.current.clone() {
+                Token::Ident(s) if s == "*" => {
+                    self.advance();
+                    TransmitScope::Propagate
+                }
+                Token::Ident(s) if s == "^" => {
+                    self.advance();
+                    TransmitScope::Escalate
+                }
+                _ => TransmitScope::Emit,
+            };
+            let message = match self.advance() {
+                Token::Str(s) => s,
+                other => return Err(format!("expected transmission message, found {:?}", other)),
+            };
+            Some(Box::new(Transmission { scope, message }))
+        } else {
+            None
+        };
+
         Ok(Stmt::Observe {
             target,
             condition,
-            transmit: None,
+            transmit,
         })
     }
 
