@@ -30,15 +30,17 @@ pub enum Token {
 pub struct Lexer {
     input: Vec<char>,
     pos: usize,
+    pub line: usize,
 }
 
 impl Lexer {
     pub fn new(source: &str) -> Self {
-        Lexer {
-            input: source.chars().collect(),
-            pos: 0,
+            Lexer {
+                input: source.chars().collect(),
+                pos: 0,
+                line: 1,
+            }
         }
-    }
 
     fn current(&self) -> Option<char> {
         self.input.get(self.pos).copied()
@@ -55,14 +57,17 @@ impl Lexer {
     }
 
     fn skip_whitespace(&mut self) {
-        while let Some(ch) = self.current() {
-            if ch.is_whitespace() {
-                self.advance();
-            } else {
-                break;
+            while let Some(ch) = self.current() {
+                if ch == '\n' {
+                    self.line += 1;
+                    self.advance();
+                } else if ch.is_whitespace() {
+                    self.advance();
+                } else {
+                    break;
+                }
             }
         }
-    }
 
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();

@@ -4,30 +4,33 @@ use crate::ast::*;
 pub struct Parser {
     lexer: Lexer,
     current: Token,
+    pub line: usize,
 }
 
 impl Parser {
     pub fn new(mut lexer: Lexer) -> Self {
-        let current = lexer.next_token();
-        Parser { lexer, current }
-    }
+            let current = lexer.next_token();
+            let line = lexer.line;
+            Parser { lexer, current, line }
+        }
 
     fn advance(&mut self) -> Token {
-        let prev = self.current.clone();
-        self.current = self.lexer.next_token();
-        prev
-    }
+            let prev = self.current.clone();
+            self.current = self.lexer.next_token();
+            self.line = self.lexer.line;
+            prev
+        }
 
     fn expect(&mut self, expected: Token) -> Result<Token, String> {
-        if self.current == expected {
-            Ok(self.advance())
-        } else {
-            Err(format!(
-                "expected {:?} but found {:?}",
-                expected, self.current
-            ))
+            if self.current == expected {
+                Ok(self.advance())
+            } else {
+                Err(format!(
+                    "line {}: expected {:?} but found {:?}",
+                    self.line, expected, self.current
+                ))
+            }
         }
-    }
 
     pub fn parse_program(&mut self) -> Result<Program, String> {
         let mut contexts = vec![];
