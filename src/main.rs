@@ -53,6 +53,28 @@ fn main() {
                 }
             }
         }
+
+        "check" => {
+                    let source = match fs::read_to_string(filepath) {
+                        Ok(contents) => contents,
+                        Err(e) => {
+                            println!("error: could not read '{}': {}", filepath, e);
+                            return;
+                        }
+                    };
+        
+                    let lexer = Lexer::new(&source);
+                    let mut parser = Parser::new(lexer);
+        
+                    match parser.parse_program() {
+                        Ok(_) => {
+                            println!("ok — {} parsed clean", filepath);
+                        }
+                        Err(e) => {
+                            println!("error in {}: {}", filepath, e);
+                        }
+                    }
+                }
         _ => {
             println!("unknown command: {}", command);
             println!("usage: vosk run <file.vsk>");
