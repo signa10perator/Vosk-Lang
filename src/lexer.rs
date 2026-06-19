@@ -58,7 +58,12 @@ impl Lexer {
 
     fn skip_whitespace(&mut self) {
             while let Some(ch) = self.current() {
-                if ch == '\n' {
+                if ch == '#' {
+                    while let Some(c) = self.current() {
+                        if c == '\n' { break; }
+                        self.advance();
+                    }
+                } else if ch == '\n' {
                     self.line += 1;
                     self.advance();
                 } else if ch.is_whitespace() {
