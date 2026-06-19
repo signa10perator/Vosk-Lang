@@ -1,0 +1,36 @@
+# ilya vosk — personal log 7
+# they don't tell you what tuning costs
+# they show you the results and call it elevation
+# i am writing this before i forget to
+
+~ subject {
+    identity  :: + "VS-04"
+    coherence :: % 
+    memory    :: %
+    signal    :: + 
+    tuned     :: +
+
+    # coherence was the first to go
+    # she still answers to her name
+    # but the pauses are getting longer
+
+    ! identity :: + 
+    ! signal   :: +
+
+    @ coherence :: x ~> ^ "SUBJECT_LOST"
+    @ memory    :: x ~> emit "LOG_BEFORE_THEY_NOTICE"
+    @ tuned     :: x ~> * "RESONANCE_COLLAPSE"
+}
+
+~ observer {
+    src       :: + "ilya"
+    certainty :: %
+    resolve   :: +
+
+    # i am still certain enough to write this
+    # that may not be true next log
+
+    ! resolve :: +
+
+    @ certainty :: x ~> emit "TRANSMISSION_ENDS_HERE"
+}
