@@ -163,7 +163,15 @@ impl Parser {
                     _ => Ok(State::Resolved),
                 }
             }
-            Token::Decaying => Ok(State::Decaying),
+            Token::Decaying => {
+                match self.current.clone() {
+                    Token::Number(n) => {
+                        self.advance();
+                        Ok(State::DecayingValue(n))
+                    }
+                    _ => Ok(State::Decaying),
+                }
+            }
             Token::Corrupted => Ok(State::Corrupted),
             Token::Number(n) => Ok(State::Value(n)),
             Token::Str(s) => Ok(State::Str(s)),

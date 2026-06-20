@@ -41,16 +41,18 @@ impl Interpreter {
     }
 
     pub fn run_program(&mut self, program: &Program) {
-        for context in &program.contexts {
-            println!("~ {} {{", context.name);
-            self.run_context(context);
-            println!("}}");
-
-            if self.corrupted {
-                println!("[CONTEXT CORRUPTED]");
+            for context in &program.contexts {
+                self.bindings.clear();
+                self.corrupted = false;
+                println!("~ {} {{", context.name);
+                self.run_context(context);
+                println!("}}");
+    
+                if self.corrupted {
+                    println!("[CONTEXT CORRUPTED]");
+                }
             }
         }
-    }
 
    fn run_context(&mut self, context: &Context) {
            for stmt in &context.body {
@@ -114,6 +116,8 @@ impl Interpreter {
 
                 let satisfied = match (&actual, &expected) {
                     (Some(RuntimeState::Resolved), RuntimeState::Resolved) => true,
+                    (Some(RuntimeState::Str(_)), RuntimeState::Resolved) => true,
+                    (Some(RuntimeState::Value(_)), RuntimeState::Resolved) => true,
                     (Some(RuntimeState::Unknown), RuntimeState::Unknown) => true,
                     (Some(RuntimeState::Corrupted), RuntimeState::Corrupted) => true,
                     _ => false,
@@ -168,6 +172,7 @@ Stmt::Observe { target, condition, transmit } => {
             State::Unknown => RuntimeState::Unknown,
             State::Resolved => RuntimeState::Resolved,
             State::Decaying => RuntimeState::Decaying(0.25),
+            State::DecayingValue(n) => RuntimeState::Decaying(*n),
             State::Corrupted => RuntimeState::Corrupted,
             State::Value(n) => RuntimeState::Value(*n),
             State::Str(s) => RuntimeState::Str(s.clone()),

@@ -3,6 +3,7 @@ pub enum State {
     Unknown,
     Resolved,
     Decaying,
+    DecayingValue(f64),
     Corrupted,
     Value(f64),
     Str(String),
