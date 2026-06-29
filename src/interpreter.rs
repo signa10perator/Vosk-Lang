@@ -30,6 +30,7 @@ impl RuntimeState {
 pub struct Interpreter {
     pub bindings: HashMap<String, RuntimeState>,
     pub corrupted: bool,
+    pub transmissions: Vec<(TransmitScope, String)>,
 }
 
 impl Interpreter {
@@ -37,13 +38,30 @@ impl Interpreter {
         Interpreter {
             bindings: HashMap::new(),
             corrupted: false,
+            transmissions: vec![],
         }
     }
 
     pub fn run_program(&mut self, program: &Program) {
+            let mut fired_transmissions: Vec<String> = vec![];
+    
             for context in &program.contexts {
                 self.bindings.clear();
                 self.corrupted = false;
+                self.transmissions.clear();
+    
+                // pre-resolve any receivers that match fired transmissions
+                for stmt in &context.body {
+                    if let Stmt::Receiver { name, .. } = stmt {
+                        if fired_transmissions.contains(name) {
+                            self.bindings.insert(
+                                format!("^{}", name),
+                                RuntimeState::Resolved,
+                            );
+                        }
+                    }
+                }
+    
                 println!("~ {} {{", context.name);
                 self.run_context(context);
                 println!("}}");
@@ -51,56 +69,85 @@ impl Interpreter {
                 if self.corrupted {
                     println!("[CONTEXT CORRUPTED]");
                 }
-            }
-        }
-
-   fn run_context(&mut self, context: &Context) {
-           for stmt in &context.body {
-               self.run_stmt(stmt);
-           }
-   
-           println!("  -- decay tick --");
-           self.tick_decay();
-   
-           for stmt in &context.body {
-               if let Stmt::Observe { target, condition, transmit } = stmt {
-                   let watch = self.state_to_runtime(condition);
-                   let actual = self.bindings.get(target).cloned();
-   
-                   let triggered = match (&actual, &watch) {
-                       (Some(RuntimeState::Corrupted), RuntimeState::Corrupted) => true,
-                       _ => false,
-                   };
-   
-                   if triggered {
-                       println!("  @ {} :: condition met after decay", target);
-                       if let Some(tx) = transmit {
-                           match tx.scope {
-                               TransmitScope::Emit => println!("  ~> emit \"{}\"", tx.message),
-                               TransmitScope::Propagate => println!("  ~> * \"{}\"", tx.message),
-                               TransmitScope::Escalate => println!("  ~> ^ \"{}\"", tx.message),
-                               TransmitScope::Local => println!("  ~> \"{}\"", tx.message),
-                           }
-                       }
-                   }
-               }
-           }
-       }
-
-    pub fn tick_decay(&mut self) {
-            let mut corrupted = vec![];
     
-            for (name, state) in self.bindings.iter_mut() {
-                *state = state.tick();
-                if let RuntimeState::Corrupted = state {
-                    corrupted.push(name.clone());
+                // collect transmissions fired in this context
+                for (scope, message) in &self.transmissions {
+                    match scope {
+                        TransmitScope::Propagate | TransmitScope::Escalate => {
+                            fired_transmissions.push(message.clone());
+                        }
+                        _ => {}
+                    }
                 }
             }
     
-            for name in corrupted {
-                println!("  % {} :: decayed -> Corrupted", name);
+            // check receivers that never received
+            for context in &program.contexts {
+                for stmt in &context.body {
+                    if let Stmt::Receiver { name, .. } = stmt {
+                        if !fired_transmissions.contains(name) {
+                            println!(
+                                "[RECEIVER ^{} in ~ {} never resolved — context corrupted]",
+                                name, context.name
+                            );
+                        }
+                    }
+                }
             }
         }
+
+    fn run_context(&mut self, context: &Context) {
+        for stmt in &context.body {
+            self.run_stmt(stmt);
+        }
+
+        println!("  -- decay tick --");
+        self.tick_decay();
+
+        for stmt in &context.body {
+            if let Stmt::Observe { target, condition, transmit } = stmt {
+                let watch = self.state_to_runtime(condition);
+                let actual = self.bindings.get(target).cloned();
+
+                let triggered = match (&actual, &watch) {
+                    (Some(RuntimeState::Corrupted), RuntimeState::Corrupted) => true,
+                    (Some(RuntimeState::Resolved), RuntimeState::Resolved) => true,
+                    (Some(RuntimeState::Unknown), RuntimeState::Unknown) => true,
+                    _ => false,
+                };
+
+                if triggered {
+                    println!("  @ {} :: condition met after decay", target);
+                    if let Some(tx) = transmit {
+                        match tx.scope {
+                            TransmitScope::Emit => {
+                                println!("  ~> emit \"{}\"", tx.message);
+                            }
+                            TransmitScope::Propagate => {
+                                println!("  ~> * \"{}\"", tx.message);
+                                self.transmissions.push((
+                                    TransmitScope::Propagate,
+                                    tx.message.clone(),
+                                ));
+                            }
+                            TransmitScope::Escalate => {
+                                println!("  ~> ^ \"{}\"", tx.message);
+                                self.transmissions.push((
+                                    TransmitScope::Escalate,
+                                    tx.message.clone(),
+                                ));
+                            }
+                            TransmitScope::Local => {
+                                println!("  ~> \"{}\"", tx.message);
+                            }
+                        }
+                    }
+                } else {
+                    println!("  @ {} :: watching", target);
+                }
+            }
+        }
+    }
 
     fn run_stmt(&mut self, stmt: &Stmt) {
         match stmt {
@@ -109,6 +156,17 @@ impl Interpreter {
                 println!("  {} :: {:?}", name, runtime);
                 self.bindings.insert(name.clone(), runtime);
             }
+
+            Stmt::Receiver { name, state } => {
+                let key = format!("^{}", name);
+                if self.bindings.contains_key(&key) {
+                    println!("  ^{} :: Resolved [receiver — transmission received]", name);
+                } else {
+                    let runtime = self.state_to_runtime(state);
+                    println!("  ^{} :: {:?} [receiver — awaiting]", name, runtime);
+                    self.bindings.insert(key, runtime);
+                    }
+                }
 
             Stmt::Constraint { target, condition } => {
                 let expected = self.state_to_runtime(condition);
@@ -131,7 +189,7 @@ impl Interpreter {
                 }
             }
 
-Stmt::Observe { target, condition, transmit } => {
+            Stmt::Observe { target, condition, .. } => {
                 let watch = self.state_to_runtime(condition);
                 let actual = self.bindings.get(target).cloned();
 
@@ -144,26 +202,25 @@ Stmt::Observe { target, condition, transmit } => {
 
                 if triggered {
                     println!("  @ {} :: condition met", target);
-                    if let Some(tx) = transmit {
-                        match tx.scope {
-                            TransmitScope::Emit => {
-                                println!("  ~> emit \"{}\"", tx.message);
-                            }
-                            TransmitScope::Propagate => {
-                                println!("  ~> * \"{}\"", tx.message);
-                            }
-                            TransmitScope::Escalate => {
-                                println!("  ~> ^ \"{}\"", tx.message);
-                            }
-                            TransmitScope::Local => {
-                                println!("  ~> \"{}\"", tx.message);
-                            }
-                        }
-                    }
                 } else {
                     println!("  @ {} :: watching", target);
                 }
             }
+        }
+    }
+
+    pub fn tick_decay(&mut self) {
+        let mut corrupted = vec![];
+
+        for (name, state) in self.bindings.iter_mut() {
+            *state = state.tick();
+            if let RuntimeState::Corrupted = state {
+                corrupted.push(name.clone());
+            }
+        }
+
+        for name in corrupted {
+            println!("  % {} :: decayed -> Corrupted", name);
         }
     }
 

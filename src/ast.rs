@@ -15,6 +15,10 @@ pub enum Stmt {
         name: String,
         state: State,
     },
+    Receiver {
+            name: String,
+            state: State,
+    },
     Constraint {
         target: String,
         condition: State,

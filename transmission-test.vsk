@@ -1,0 +1,13 @@
+# cross-context transmission test
+~ alpha {
+    coherence :: % 0.25
+
+    @ coherence :: x ~> * "SIGNAL_LOST"
+}
+
+~ beta {
+    ^SIGNAL_LOST :: ?
+
+    ! ^SIGNAL_LOST :: +
+    @ ^SIGNAL_LOST :: + ~> emit "BETA_RECEIVED"
+}

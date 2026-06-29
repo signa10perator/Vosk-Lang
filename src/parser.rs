@@ -68,6 +68,7 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, String> {
         match self.current.clone() {
             Token::Ident(_) => self.parse_binding(),
+            Token::Receiver(_) => self.parse_receiver(),
             Token::Constraint => self.parse_constraint(),
             Token::Observe => self.parse_observe(),
             other => Err(format!("unexpected token in context body: {:?}", other)),
@@ -89,17 +90,31 @@ impl Parser {
 
     fn parse_constraint(&mut self) -> Result<Stmt, String> {
         self.expect(Token::Constraint)?;
-
+    
         let target = match self.advance() {
             Token::Ident(s) => s,
+            Token::Receiver(s) => format!("^{}", s),
             other => return Err(format!("expected identifier, found {:?}", other)),
         };
-
+    
         self.expect(Token::Bind)?;
-
+    
         let condition = self.parse_state()?;
-
+    
         Ok(Stmt::Constraint { target, condition })
+    }
+
+    fn parse_receiver(&mut self) -> Result<Stmt, String> {
+        let name = match self.advance() {
+            Token::Receiver(s) => s,
+            other => return Err(format!("expected receiver name, found {:?}", other)),
+        };
+    
+        self.expect(Token::Bind)?;
+    
+        let state = self.parse_state()?;
+    
+        Ok(Stmt::Receiver { name, state })
     }
 
     fn parse_observe(&mut self) -> Result<Stmt, String> {
@@ -107,6 +122,7 @@ impl Parser {
 
         let target = match self.advance() {
             Token::Ident(s) => s,
+            Token::Receiver(s) => format!("^{}", s),
             other => return Err(format!("expected identifier, found {:?}", other)),
         };
 

@@ -7,6 +7,7 @@ pub enum Token {
     Transmit,
     Bind,
     Arrow,
+    Escalate,
 
     // States
     Unknown,
@@ -20,6 +21,7 @@ pub enum Token {
 
     // Values
     Ident(String),
+    Receiver(String),   // ^NAME
     Str(String),
     Number(f64),
 
@@ -98,6 +100,27 @@ impl Lexer {
             }
 
             Some('!') => { self.advance(); Token::Constraint }
+            Some('^') => {
+                self.advance();
+                if let Some(c) = self.current() {
+                    if c.is_alphabetic() || c == '_' {
+                        let mut name = String::new();
+                        while let Some(c) = self.current() {
+                            if c.is_alphanumeric() || c == '_' {
+                                name.push(c);
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        Token::Receiver(name)
+                    } else {
+                        Token::Escalate
+                    }
+                } else {
+                    Token::Escalate
+                }
+            }
 
             Some(':') => {
                 self.advance();
